@@ -82,19 +82,48 @@
         .btn-move-up:focus {
             box-shadow: none !important;
         }
+        .list-menu {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .nav-item.draggable {
+            cursor: move;
+            user-select: none;
+            position: relative;
+        }
+        .nav-item.draggable.dragging {
+            opacity: 0.5;
+            background-color: #f0f0f0;
+        }
+        .nav-item.draggable::before {
+            content: '☰';
+            margin-right: 0.5rem;
+            font-size: 1.2rem;
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <nav class="navbar navbar-light bg-light">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
                 <span class="navbar-brand editable-title mb-0" id="listTitle" onclick="todoApp.editListTitle(this)">Wants</span>
             </div>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav" id="listMenu"></ul>
+            <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+                <div class="offcanvas-header">
+                    <h5 class="offcanvas-title" id="offcanvasMenuLabel">Lists</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body">
+                    <input type="text" class="form-control mb-2" id="listSearch" placeholder="Search Lists">
+                    <ul class="navbar-nav list-menu" id="listMenu">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#newListModal">New List</a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </nav>
@@ -132,7 +161,8 @@
             constructor() {
                 this.currentList = 'Wants';
                 this.lists = JSON.parse(localStorage.getItem('todoLists')) || { 'Wants': [] };
-                this.navbarCollapse = document.getElementById('navbarNav');
+                this.listOrder = JSON.parse(localStorage.getItem('listOrder')) || Object.keys(this.lists);
+                this.offcanvasElement = document.getElementById('offcanvasMenu');
                 this.initEventListeners();
                 this.loadList();
             }
@@ -155,10 +185,9 @@
                     .join(' ');
             }
 
-            collapseNavbar() {
-                if (this.navbarCollapse.classList.contains('show')) {
-                    new bootstrap.Collapse(this.navbarCollapse, { toggle: false }).hide();
-                }
+            closeOffcanvas() {
+                const offcanvas = bootstrap.Offcanvas.getInstance(this.offcanvasElement) || new bootstrap.Offcanvas(this.offcanvasElement);
+                offcanvas.hide();
             }
 
             addItem() {
@@ -182,6 +211,7 @@
                     listName = this.capitalizeWords(listName);
                     if (!this.lists[listName]) {
                         this.lists[listName] = [];
+                        this.listOrder.push(listName);
                         this.currentList = listName;
                         this.saveLists();
                         this.updateTitle();
@@ -189,7 +219,7 @@
                         this.renderMenu();
                         listNameInput.value = '';
                         bootstrap.Modal.getInstance(document.getElementById('newListModal')).hide();
-                        this.collapseNavbar();
+                        this.closeOffcanvas();
                     } else {
                         alert('List name already exists.');
                     }
@@ -211,6 +241,7 @@
                         newName = this.capitalizeWords(newName);
                         if (!this.lists[newName]) {
                             this.lists[newName] = this.lists[this.currentList];
+                            this.listOrder[this.listOrder.indexOf(this.currentList)] = newName;
                             delete this.lists[this.currentList];
                             this.currentList = newName;
                             this.saveLists();
@@ -240,6 +271,7 @@
                 }
                 if (confirm(`Are you sure you want to delete the "${listName}" list?`)) {
                     delete this.lists[listName];
+                    this.listOrder = this.listOrder.filter(name => name !== listName);
                     if (this.currentList === listName) {
                         this.currentList = 'Wants';
                     }
@@ -247,7 +279,7 @@
                     this.updateTitle();
                     this.renderList();
                     this.renderMenu();
-                    this.collapseNavbar();
+                    this.closeOffcanvas();
                 }
             }
 
@@ -256,7 +288,7 @@
                     this.currentList = listName;
                     this.updateTitle();
                     this.renderList();
-                    this.collapseNavbar();
+                    this.closeOffcanvas();
                 }
             }
 
@@ -292,8 +324,16 @@
                 });
             }
 
+            reorderLists(oldIndex, newIndex) {
+                const [movedList] = this.listOrder.splice(oldIndex, 1);
+                this.listOrder.splice(newIndex, 0, movedList);
+                this.saveLists();
+                this.renderMenu();
+            }
+
             saveLists() {
                 localStorage.setItem('todoLists', JSON.stringify(this.lists));
+                localStorage.setItem('listOrder', JSON.stringify(this.listOrder));
             }
 
             updateTitle() {
@@ -307,25 +347,107 @@
                         <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#newListModal">New List</a>
                     </li>
                 `;
-                Object.keys(this.lists).forEach(listName => {
-                    const li = document.createElement('li');
-                    li.className = 'nav-item d-flex align-items-center';
-                    const switchLink = document.createElement('a');
-                    switchLink.className = 'nav-link';
-                    switchLink.href = '#';
-                    switchLink.innerText = listName;
-                    switchLink.addEventListener('click', () => this.switchList(listName));
-                    li.appendChild(switchLink);
-                    if (listName !== 'Wants') {
-                        const deleteLink = document.createElement('a');
-                        deleteLink.className = 'nav-link delete-btn text-danger';
-                        deleteLink.href = '#';
-                        deleteLink.innerText = 'Delete';
-                        deleteLink.addEventListener('click', () => this.deleteList(listName));
-                        li.appendChild(deleteLink);
-                    }
-                    listMenu.appendChild(li);
-                });
+                const searchInput = document.getElementById('listSearch');
+                const renderFilteredLists = (filter = '') => {
+                    listMenu.innerHTML = `
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#newListModal">New List</a>
+                        </li>
+                    `;
+                    this.listOrder
+                        .filter(listName => listName.toLowerCase().includes(filter.toLowerCase()))
+                        .forEach((listName, index) => {
+                            const li = document.createElement('li');
+                            li.className = 'nav-item d-flex align-items-center draggable';
+                            li.setAttribute('data-index', index);
+                            const switchLink = document.createElement('a');
+                            switchLink.className = 'nav-link';
+                            switchLink.href = '#';
+                            switchLink.innerText = listName;
+                            switchLink.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                this.switchList(listName);
+                            });
+                            li.appendChild(switchLink);
+                            if (listName !== 'Wants') {
+                                const deleteLink = document.createElement('a');
+                                deleteLink.className = 'nav-link delete-btn text-danger';
+                                deleteLink.href = '#';
+                                deleteLink.innerText = 'Delete';
+                                deleteLink.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    this.deleteList(listName);
+                                });
+                                li.appendChild(deleteLink);
+                            }
+                            listMenu.appendChild(li);
+                        });
+
+                    // Desktop drag-and-drop
+                    const draggables = listMenu.querySelectorAll('.draggable');
+                    draggables.forEach(draggable => {
+                        draggable.setAttribute('draggable', 'true');
+                        draggable.addEventListener('dragstart', (e) => {
+                            draggable.classList.add('dragging');
+                            e.dataTransfer.setData('text/plain', draggable.dataset.index);
+                        });
+                        draggable.addEventListener('dragend', () => {
+                            draggable.classList.remove('dragging');
+                        });
+                        draggable.addEventListener('dragover', (e) => {
+                            e.preventDefault();
+                        });
+                        draggable.addEventListener('drop', (e) => {
+                            e.preventDefault();
+                            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                            const toIndex = parseInt(draggable.dataset.index);
+                            if (fromIndex !== toIndex) {
+                                this.reorderLists(fromIndex, toIndex);
+                            }
+                        });
+                    });
+
+                    // Mobile touch drag-and-drop
+                    let touchStartY = 0;
+                    let touchElement = null;
+                    let touchIndex = null;
+
+                    draggables.forEach(draggable => {
+                        draggable.addEventListener('touchstart', (e) => {
+                            touchElement = draggable;
+                            touchIndex = parseInt(draggable.dataset.index);
+                            touchStartY = e.touches[0].clientY;
+                            draggable.classList.add('dragging');
+                        }, { passive: true });
+
+                        draggable.addEventListener('touchmove', (e) => {
+                            e.preventDefault();
+                            const touchY = e.touches[0].clientY;
+                            const elements = [...listMenu.querySelectorAll('.draggable')];
+                            const currentElement = elements.find(el => {
+                                const rect = el.getBoundingClientRect();
+                                return touchY >= rect.top && touchY <= rect.bottom;
+                            });
+                            if (currentElement && currentElement !== touchElement) {
+                                const newIndex = parseInt(currentElement.dataset.index);
+                                if (newIndex !== touchIndex) {
+                                    this.reorderLists(touchIndex, newIndex);
+                                    touchIndex = newIndex;
+                                    touchElement = currentElement;
+                                }
+                            }
+                        }, { passive: false });
+
+                        draggable.addEventListener('touchend', () => {
+                            draggable.classList.remove('dragging');
+                            touchElement = null;
+                            touchIndex = null;
+                        });
+                    });
+                };
+
+                renderFilteredLists();
+                searchInput.addEventListener('input', (e) => renderFilteredLists(e.target.value));
             }
 
             renderList() {
