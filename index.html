@@ -9,12 +9,12 @@
         .todo-card {
             margin-bottom: 1rem;
         }
-        .editable {
+        .editable, .editable-title {
             border: none;
             background: transparent;
             width: 100%;
         }
-        .editable:focus {
+        .editable:focus, .editable-title:focus {
             outline: none;
             background: #f8f9fa;
         }
@@ -39,12 +39,18 @@
         .btn-success:focus {
             box-shadow: none !important;
         }
+        .editable-title {
+            cursor: pointer;
+            padding: 0.375rem 0.75rem;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
-            <a class="navbar-brand" id="listTitle" href="#">Wants</a>
+            <div class="d-flex align-items-center">
+                <span class="navbar-brand editable-title mb-0" id="listTitle" onclick="todoApp.editListTitle(this)">Wants</span>
+            </div>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -151,6 +157,41 @@
                 } else if (this.lists[listName]) {
                     alert('List name already exists.');
                 }
+            }
+
+            editListTitle(element) {
+                if (this.currentList === 'Wants') {
+                    alert('Cannot rename the default "Wants" list.');
+                    return;
+                }
+                element.contentEditable = true;
+                element.focus();
+                element.addEventListener('blur', () => {
+                    let newName = element.innerText.trim();
+                    if (newName && newName !== this.currentList) {
+                        newName = this.capitalizeWords(newName);
+                        if (!this.lists[newName]) {
+                            this.lists[newName] = this.lists[this.currentList];
+                            delete this.lists[this.currentList];
+                            this.currentList = newName;
+                            this.saveLists();
+                            this.updateTitle();
+                            this.renderMenu();
+                        } else {
+                            alert('List name already exists.');
+                            element.innerText = this.currentList;
+                        }
+                    } else if (!newName) {
+                        element.innerText = this.currentList;
+                    }
+                    element.contentEditable = false;
+                }, { once: true });
+                element.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        element.blur();
+                    }
+                });
             }
 
             deleteList(listName) {
