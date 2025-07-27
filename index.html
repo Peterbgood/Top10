@@ -19,7 +19,7 @@
             background: #f8f9fa;
         }
         .nav-link.delete-btn {
-            margin-left: 1rem;
+            margin-left: auto;
         }
         .item-number {
             margin-right: 0.5rem;
@@ -85,11 +85,15 @@
         .list-menu {
             max-height: 70vh;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
         }
         .nav-item.draggable {
             cursor: move;
             user-select: none;
             position: relative;
+            display: flex;
+            align-items: center;
         }
         .nav-item.draggable.dragging {
             opacity: 0.5;
