@@ -82,11 +82,16 @@
         .btn-move-up:focus {
             box-shadow: none !important;
         }
-        .list-menu {
-            max-height: 70vh;
+        .offcanvas-body {
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            overscroll-behavior: contain;
+            max-height: 80vh;
+            overscroll-behavior-y: contain;
+            -ms-overflow-style: auto;
+        }
+        .list-menu {
+            max-height: none;
+            overflow-y: visible;
         }
         .nav-item.draggable {
             cursor: move;
@@ -211,6 +216,10 @@
             createNewList() {
                 const listNameInput = document.getElementById('newListName');
                 let listName = listNameInput.value.trim();
+                if (Object.keys(this.lists).length >= 20) {
+                    alert('Maximum 20 lists allowed.');
+                    return;
+                }
                 if (listName && !this.lists[listName]) {
                     listName = this.capitalizeWords(listName);
                     if (!this.lists[listName]) {
