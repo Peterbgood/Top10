@@ -6,9 +6,6 @@
     <title>To-Do List</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .todo-card {
-            margin-bottom: 1rem;
-        }
         .editable, .editable-title {
             border: none;
             background: transparent;
@@ -30,57 +27,13 @@
             padding: 0.375rem 0.75rem;
         }
         .top-tier {
-            border: 2px solid #198754 !important;
+            color: #198754 !important;
         }
         .mid-tier {
-            border: 2px solid #0d6efd !important;
+            color: #0d6efd !important;
         }
         .bottom-tier {
-            border: 2px solid #000000 !important;
-        }
-        .bottom-tier-divider {
-            border-top: 2px solid #000000;
-            margin: 1rem 0;
-            padding-top: 0.5rem;
-            font-weight: bold;
-            text-align: center;
-        }
-        .top-tier .btn-move-up {
-            background-color: #198754 !important;
-            border-color: #198754 !important;
-        }
-        .top-tier .btn-move-up:active,
-        .top-tier .btn-move-up:focus,
-        .top-tier .btn-move-up:hover {
-            background-color: #157347 !important;
-            border-color: #157347 !important;
-            color: #fff !important;
-        }
-        .mid-tier .btn-move-up {
-            background-color: #0d6efd !important;
-            border-color: #0d6efd !important;
-        }
-        .mid-tier .btn-move-up:active,
-        .mid-tier .btn-move-up:focus,
-        .mid-tier .btn-move-up:hover {
-            background-color: #0a58ca !important;
-            border-color: #0a58ca !important;
-            color: #fff !important;
-        }
-        .bottom-tier .btn-move-up {
-            background-color: #000000 !important;
-            border-color: #000000 !important;
-            color: #fff !important;
-        }
-        .bottom-tier .btn-move-up:active,
-        .bottom-tier .btn-move-up:focus,
-        .bottom-tier .btn-move-up:hover {
-            background-color: #333333 !important;
-            border-color: #333333 !important;
-            color: #fff !important;
-        }
-        .btn-move-up:focus {
-            box-shadow: none !important;
+            color: #000000 !important;
         }
         .offcanvas-body {
             overflow-y: auto;
@@ -93,21 +46,24 @@
             max-height: none;
             overflow-y: visible;
         }
-        .nav-item.draggable {
+        .nav-item.draggable, .list-item.draggable {
             cursor: move;
             user-select: none;
             position: relative;
             display: flex;
             align-items: center;
         }
-        .nav-item.draggable.dragging {
+        .nav-item.draggable.dragging, .list-item.draggable.dragging {
             opacity: 0.5;
             background-color: #f0f0f0;
         }
-        .nav-item.draggable::before {
+        .nav-item.draggable::before, .list-item.draggable::before {
             content: '☰';
             margin-right: 0.5rem;
             font-size: 1.2rem;
+        }
+        .list-item {
+            margin-bottom: 0.5rem;
         }
     </style>
 </head>
@@ -305,14 +261,11 @@
                 }
             }
 
-            moveItemUp(index) {
-                if (index > 0) {
-                    const temp = this.lists[this.currentList][index];
-                    this.lists[this.currentList][index] = this.lists[this.currentList][index - 1];
-                    this.lists[this.currentList][index - 1] = temp;
-                    this.saveLists();
-                    this.renderList();
-                }
+            reorderItems(oldIndex, newIndex) {
+                const [movedItem] = this.lists[this.currentList].splice(oldIndex, 1);
+                this.lists[this.currentList].splice(newIndex, 0, movedItem);
+                this.saveLists();
+                this.renderList();
             }
 
             editItem(index, element) {
@@ -396,7 +349,7 @@
                             listMenu.appendChild(li);
                         });
 
-                    // Desktop drag-and-drop
+                    // Desktop drag-and-drop for lists
                     const draggables = listMenu.querySelectorAll('.draggable');
                     draggables.forEach(draggable => {
                         draggable.setAttribute('draggable', 'true');
@@ -420,7 +373,7 @@
                         });
                     });
 
-                    // Mobile touch drag-and-drop
+                    // Mobile touch drag-and-drop for lists
                     let touchStartY = 0;
                     let touchElement = null;
                     let touchIndex = null;
@@ -467,24 +420,78 @@
                 const todoList = document.getElementById('todoList');
                 todoList.innerHTML = '';
                 this.lists[this.currentList].forEach((item, index) => {
-                    if (index === 5) {
-                        const divider = document.createElement('div');
-                        divider.className = 'bottom-tier-divider';
-                        divider.innerText = 'Bottom Tier';
-                        todoList.appendChild(divider);
-                    }
-                    const card = document.createElement('div');
-                    card.className = `card todo-card ${index < 3 ? 'top-tier' : index < 5 ? 'mid-tier' : 'bottom-tier'}`;
-                    card.innerHTML = `
-                        <div class="card-body">
-                            <div class="d-flex align-items-center">
-                                <span class="item-number">${index + 1}.</span>
-                                <div class="editable flex-grow-1" onclick="todoApp.editItem(${index}, this)">${item}</div>
-                            </div>
-                            <button class="btn btn-move-up btn-sm w-100 mt-2" ${index === 0 ? 'disabled' : ''} onclick="todoApp.moveItemUp(${index})">↑ Move Up</button>
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = `list-item draggable ${index < 3 ? 'top-tier' : index < 5 ? 'mid-tier' : 'bottom-tier'}`;
+                    itemDiv.setAttribute('data-index', index);
+                    itemDiv.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <span class="item-number">${index + 1}.</span>
+                            <div class="editable flex-grow-1" onclick="todoApp.editItem(${index}, this)">${item}</div>
                         </div>
                     `;
-                    todoList.appendChild(card);
+                    todoList.appendChild(itemDiv);
+                });
+
+                // Desktop drag-and-drop for items
+                const draggables = todoList.querySelectorAll('.draggable');
+                draggables.forEach(draggable => {
+                    draggable.setAttribute('draggable', 'true');
+                    draggable.addEventListener('dragstart', (e) => {
+                        draggable.classList.add('dragging');
+                        e.dataTransfer.setData('text/plain', draggable.dataset.index);
+                    });
+                    draggable.addEventListener('dragend', () => {
+                        draggable.classList.remove('dragging');
+                    });
+                    draggable.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                    });
+                    draggable.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                        const toIndex = parseInt(draggable.dataset.index);
+                        if (fromIndex !== toIndex) {
+                            this.reorderItems(fromIndex, toIndex);
+                        }
+                    });
+                });
+
+                // Mobile touch drag-and-drop for items
+                let touchStartY = 0;
+                let touchElement = null;
+                let touchIndex = null;
+
+                draggables.forEach(draggable => {
+                    draggable.addEventListener('touchstart', (e) => {
+                        touchElement = draggable;
+                        touchIndex = parseInt(draggable.dataset.index);
+                        touchStartY = e.touches[0].clientY;
+                        draggable.classList.add('dragging');
+                    }, { passive: true });
+
+                    draggable.addEventListener('touchmove', (e) => {
+                        e.preventDefault();
+                        const touchY = e.touches[0].clientY;
+                        const elements = [...todoList.querySelectorAll('.draggable')];
+                        const currentElement = elements.find(el => {
+                            const rect = el.getBoundingClientRect();
+                            return touchY >= rect.top && touchY <= rect.bottom;
+                        });
+                        if (currentElement && currentElement !== touchElement) {
+                            const newIndex = parseInt(currentElement.dataset.index);
+                            if (newIndex !== touchIndex) {
+                                this.reorderItems(touchIndex, newIndex);
+                                touchIndex = newIndex;
+                                touchElement = currentElement;
+                            }
+                        }
+                    }, { passive: false });
+
+                    draggable.addEventListener('touchend', () => {
+                        draggable.classList.remove('dragging');
+                        touchElement = null;
+                        touchIndex = null;
+                    });
                 });
             }
 
